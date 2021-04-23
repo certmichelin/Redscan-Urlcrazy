@@ -29,15 +29,16 @@ public class RabbitMqConfig extends RabbitMqBaseConfig {
   // * QUEUE_DOMAINS.
   // */
   public static final String QUEUE_MASTERDOMAINS = "com.michelin.cert.shodan.masterdomains";
+    
   /**
-  * Queue configuration method.
-  *
-  * @return Declarables.
-  */
-    @Bean
-    public Declarables fanoutBindings() {
-      Queue queue = new Queue(QUEUE_MASTERDOMAINS, false);
-      FanoutExchange fanoutExchange = new FanoutExchange(FANOUT_MASTERDOMAINS_EXCHANGE_NAME, false, false);
-      return new Declarables(queue, fanoutExchange, BindingBuilder.bind(queue).to(fanoutExchange));
-    }
+    * Queue configuration method.
+    *
+    * @return Declarables.
+    */
+  @Bean
+  public Declarables fanoutBindings() {
+    Queue queue = new Queue(QUEUE_MASTERDOMAINS, false);
+    FanoutExchange fanoutExchange = new FanoutExchange(FANOUT_MASTERDOMAINS_EXCHANGE_NAME, false, false);
+    return new Declarables(queue, fanoutExchange, BindingBuilder.bind(queue).to(fanoutExchange));
+  }
 }
