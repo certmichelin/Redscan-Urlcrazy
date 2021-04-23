@@ -4,6 +4,7 @@
 
 package com.michelin.cert.redscan;
 
+import com.michelin.cert.redscan.utils.datalake.DatalakeStorageException;
 import com.michelin.cert.redscan.utils.system.OsCommandExecutor;
 import com.michelin.cert.redscan.utils.system.StreamGobbler;
 import java.io.File;
@@ -23,6 +24,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.dao.DataAccessException;
 
 /**
  * RedScan scanner main class.
@@ -100,7 +102,12 @@ public class UrlcrazyScanApplication {
     
   
     if (!finalResult.isEmpty()) {
-      datalakeConfig.upsertMasterDomainField(message, "urlcrazy", finalResult);
+      try {
+        datalakeConfig.upsertMasterDomainField(message, "urlcrazy", finalResult);
+      } catch (DatalakeStorageException e)  {
+        LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("datalake storage exeception %s", e));
+      }
+      
     }
   
  
