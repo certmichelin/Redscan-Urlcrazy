@@ -34,6 +34,6 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
         registry: docker.pkg.github.com
-        repository: certmichelin/Redscan-Urlcrazy/Redscan-Urlcrazy
+        repository: certmichelin/redscan-urlcrazy/redscan-urlcrazy
         tags: latest
         
