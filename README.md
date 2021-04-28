@@ -3,7 +3,7 @@
 | Attribute     | Value                                        |
 | ------------- | -------------------------------------------- |
 | Subscribe to  |           MASTERDOMAINS                      |
-| Send to       |                NONE                          |
+| Send to       |       FANOUT_EXCHANGE_VULNERABILITY          |
 | Tools used    |                urlcrazy                      |
 | Configuration | /conf/log4j2.xml : Log4j2 configuration file |
 
