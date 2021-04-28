@@ -5,6 +5,8 @@
 package com.michelin.cert.redscan;
 
 import com.michelin.cert.redscan.utils.datalake.DatalakeStorageException;
+import com.michelin.cert.redscan.utils.models.Severity;
+import com.michelin.cert.redscan.utils.models.Vulnerability;
 import com.michelin.cert.redscan.utils.system.OsCommandExecutor;
 import com.michelin.cert.redscan.utils.system.StreamGobbler;
 import java.io.File;
@@ -40,13 +42,14 @@ public class UrlcrazyScanApplication {
   @Autowired
   private DatalakeConfig datalakeConfig;
 
+  private final RabbitTemplate rabbitTemplate;
   /**
    * Constructor to init rabbit template. Only required if pushing data to queues
    *
    * @param rabbitTemplate Rabbit template.
    */
   public UrlcrazyScanApplication(RabbitTemplate rabbitTemplate) {
-    
+    this.rabbitTemplate = rabbitTemplate;
   }
 
   /**
@@ -130,9 +133,18 @@ public class UrlcrazyScanApplication {
         JSONObject jsonCursor = (JSONObject) o;
         if (!jsonCursor.get("resolved_a").toString().isEmpty() 
                 && !jsonCursor.get("type").toString().contains("All SLD") 
-                && !jsonCursor.get("type").toString().contains("Wrong TLD")) { 
+                && !jsonCursor.get("type").toString().contains("Wrong TLD")
+                && !jsonCursor.get("type").toString().contains("Original")) {
+          String message = jsonCursor.get("name").toString();
           if (!returningJson.contains(jsonCursor)) {
             returningJson.add(jsonCursor);
+            Vulnerability vulnerability = new Vulnerability(Vulnerability.generateId("redscan-urlcrazy",message,"urlcrazy"),
+                        Severity.INFO,
+                        String.format("[%s] Potential Squat on ", message ),
+                        String.format("Theses domains %s may squat our brand : %s", message, jsonCursor),
+                        message,
+                        "redscan-urlcrazy");
+            rabbitTemplate.convertAndSend(RabbitMqConfig.FANOUT_VULNERABILITIES_EXCHANGE_NAME, "", vulnerability.toJson());
           }
           
         }
@@ -144,9 +156,18 @@ public class UrlcrazyScanApplication {
         JSONObject jsonCursor = (JSONObject) o;
         if (!jsonCursor.get("resolved_a").toString().isEmpty()
                 && !jsonCursor.get("type").toString().contains("All SLD")
-                && !jsonCursor.get("type").toString().contains("Wrong TLD")) {  
+                && !jsonCursor.get("type").toString().contains("Wrong TLD")
+                && !jsonCursor.get("type").toString().contains("Original")) {
+          String message = jsonCursor.get("name").toString();
           if (!returningJson.contains(jsonCursor)) {
             returningJson.add(jsonCursor);
+            Vulnerability vulnerability = new Vulnerability(Vulnerability.generateId("redscan-urlcrazy",message,"urlcrazy"),
+                        Severity.INFO,
+                        String.format("[%s] Potential Squat on ", message ),
+                        String.format("Theses domains %s may squat our brand : %s", message, jsonCursor),
+                        message,
+                        "redscan-urlcrazy");
+            rabbitTemplate.convertAndSend(RabbitMqConfig.FANOUT_VULNERABILITIES_EXCHANGE_NAME, "", vulnerability.toJson());
           }
 
         }    
