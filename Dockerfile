@@ -6,8 +6,9 @@ RUN apt update
 RUN apt install ruby-dev -y 
 RUN apt install git -y
 RUN apt install build-essential -y
-RUN git clone https://github.com/urbanadventurer/urlcrazy.git
-WORKDIR urlcrazy/
+RUN wget https://github.com/urbanadventurer/urlcrazy/archive/refs/tags/v0.7.3.tar.gz
+RUN tar -xvzf v0.7.3.tar.gz
+WORKDIR /urlcrazy-0.7.3
 RUN gem install bundler
 RUN bundle install
 WORKDIR /

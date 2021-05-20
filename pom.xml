@@ -5,7 +5,7 @@
 
     <groupId>com.michelin.cert.redscan</groupId>
     <artifactId>redscan-urlcrazy</artifactId>
-    <version>2.0.1</version>
+    <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     
     <properties>
@@ -14,8 +14,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     
         <!-- Define dependencies versions -->
-        <redscan-utils.version>2.0.4</redscan-utils.version>
+        <redscan-utils.version>2.0.7</redscan-utils.version>
         <log4j-layout-template-json.version>2.14.0</log4j-layout-template-json.version>
+        <json-simple.version>1.1.1</json-simple.version>
 
         <!-- Define test dependencies versions -->
         
@@ -91,7 +92,7 @@
         <dependency>
             <groupId>com.googlecode.json-simple</groupId>
             <artifactId>json-simple</artifactId>
-            <version>1.1.1</version>
+            <version>${json-simple.version}</version>
         </dependency>
         
         <!-- End of Custom dependencies -->
