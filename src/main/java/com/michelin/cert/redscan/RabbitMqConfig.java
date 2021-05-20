@@ -22,13 +22,11 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class RabbitMqConfig extends RabbitMqBaseConfig {
-
-  //TODO: Configure interaction.
   
   ///**
   // * QUEUE_DOMAINS.
   // */
-  public static final String QUEUE_MASTERDOMAINS = "com.michelin.cert.shodan.masterdomains";
+  public static final String QUEUE_MASTERDOMAINS = "com.michelin.cert.urlcrazy.masterdomains";
     
   /**
     * Queue configuration method.

@@ -4,7 +4,7 @@
 | ------------- | -------------------------------------------- |
 | Subscribe to  |           MASTERDOMAINS                      |
 | Send to       |       FANOUT_EXCHANGE_VULNERABILITY          |
-| Tools used    |                urlcrazy                      |
+| Tools used    |                urlcrazy 0.7.3                |
 | Configuration | /conf/log4j2.xml : Log4j2 configuration file |
 
 ### Objective
