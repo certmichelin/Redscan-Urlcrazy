@@ -2,19 +2,18 @@
 
 | Attribute     | Value                                        |
 | ------------- | -------------------------------------------- |
-| Subscribe to  |           MASTERDOMAINS                      |
-| Send to       |       FANOUT_EXCHANGE_VULNERABILITY          |
-| Tools used    |                urlcrazy 0.7.3                |
+| Subscribe to  | MASTERDOMAINS                                |
+| Send to       | FANOUT_EXCHANGE_VULNERABILITY                |
+| Tools used    | urlcrazy 0.7.3                               |
 | Configuration | /conf/log4j2.xml : Log4j2 configuration file |
 
 ### Objective
 
-Monitor registered exotic domains name which can be used for Phishing , Url Hijacking, typo-squatting and affiliates.
-
+Monitor registered exotic domains name which can be used for Phishing , Url hijacking, typo-squatting and affiliates.
 
 ### Description
 
-Brute force domains names and requests for them.
+Brute force domains names using glitched domain provided (ex: nichelin instead od michelin) and requests for them.
 
 ### How to develop
 
