@@ -50,11 +50,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class UrlcrazyScanApplication {
 
-
   @Autowired
   private DatalakeConfig datalakeConfig;
 
   private final RabbitTemplate rabbitTemplate;
+
   /**
    * Constructor to init rabbit template. Only required if pushing data to queues
    *
@@ -80,109 +80,64 @@ public class UrlcrazyScanApplication {
    */
   @RabbitListener(queues = {RabbitMqConfig.QUEUE_MASTERDOMAINS})
   public void receiveMessage(String message) {
-    LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Starting urlcrazy on : %s -- Layout: Qwerty", message));
-    String qwTempOutFile = null;
-    String azTempOutFile = null;
-    JSONArray finalResult = new JSONArray();
-    try {
-      qwTempOutFile = String.format("%sqwerty.json", message);
-      azTempOutFile = String.format("%sazerty.json", message);
-      OsCommandExecutor osCommandExecutor = new OsCommandExecutor();
-      StreamGobbler streamGobbler = osCommandExecutor.execute(String.format("urlcrazy/urlcrazy -k qwerty -f JSON -o %s %s", qwTempOutFile, message));
-      if (streamGobbler != null) {
-        LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Subfinder terminated with status : %d", streamGobbler.getExitStatus()));
-      }
-      LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Starting Urlcrazy on %s -- Layout: Azerty", message));
-      streamGobbler = osCommandExecutor.execute(String.format("urlcrazy/urlcrazy -k azerty -f JSON -o %s %s", azTempOutFile, message));
-      if (streamGobbler != null) {
-        LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Subfinder terminated with status : %d", streamGobbler.getExitStatus()));
-      }
-      finalResult = jsonResultFormatter(azTempOutFile, qwTempOutFile);//JsonResultFormatter(azTempOutFile, qwTempOutFile);
-    } catch (Exception ex) {
-      LogManager.getLogger(UrlcrazyScanApplication.class).error(String.format("Exception : %s", ex.getMessage()));
-    } finally {
-      if (qwTempOutFile != null) {
-        File qwToDelete = new File(qwTempOutFile);
-        if (qwToDelete.delete()) {
-          LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("First temp file deleted"));
-        }
-      }
-      if (azTempOutFile != null) {
-        File azToDelete = new File(azTempOutFile);
-        if (azToDelete.delete()) {
-          LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Second temp file deleted"));
-        }
-      }
-    }
-    
-  
-    if (!finalResult.isEmpty()) {
+    LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Starting urlcrazy on : %s", message));
+
+    JSONArray results = new JSONArray();
+    executeUrlCrazy(message, "azerty", results);
+    executeUrlCrazy(message, "qwerty", results);
+
+    if (!results.isEmpty()) {
       try {
-        datalakeConfig.upsertMasterDomainField(message, "urlcrazy", finalResult);
-      } catch (DatalakeStorageException e)  {
+        datalakeConfig.upsertMasterDomainField(message, "urlcrazy", results);
+      } catch (DatalakeStorageException e) {
         LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("datalake storage exeception %s", e));
       }
-      
     }
-  
- 
   }
-  /**
-   * 
-   * @param azTempOutFile Output Json file for azerty layout.
-   * @param qwTempOutFile Output Json file for qwerty layout.
-   * @return returningJson Formatted json to insert in elastic.
-   */
-  public JSONArray jsonResultFormatter(String azTempOutFile, String qwTempOutFile) {
-    JSONParser parser = new JSONParser();
-    JSONArray returningJson = new JSONArray();
-    try {
-      LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("JsonresultFormatter"));
-      Object obj = parser.parse(new FileReader(azTempOutFile));
-      JSONObject jsonObj = (JSONObject) obj;
-      JSONArray jsonTypos = (JSONArray) jsonObj.get("typos");
-      for (Object o : jsonTypos) {
-        JSONObject jsonCursor = (JSONObject) o;
-        if (!jsonCursor.get("resolved_a").toString().isEmpty() 
-                && !jsonCursor.get("type").toString().contains("All SLD") 
-                && !jsonCursor.get("type").toString().contains("Wrong TLD")
-                && !jsonCursor.get("type").toString().contains("Original")) {
-          String message = jsonCursor.get("name").toString();
-          if (!returningJson.contains(jsonCursor)) {
-            returningJson.add(jsonCursor);
-            Vulnerability vulnerability = new Vulnerability(Vulnerability.generateId("redscan-urlcrazy",message,"urlcrazy"),
-                        Severity.INFO,
-                        String.format("[%s] Potential Squat on ", message ),
-                        String.format("Theses domains %s may squat our brand : %s", message, jsonCursor),
-                        message,
-                        "redscan-urlcrazy");
-            rabbitTemplate.convertAndSend(RabbitMqConfig.FANOUT_VULNERABILITIES_EXCHANGE_NAME, "", vulnerability.toJson());
-          }
-          
-        }
-      }
-      Object qwobj = parser.parse(new FileReader(qwTempOutFile));
-      JSONObject qwjsonObj = (JSONObject) qwobj;
-      JSONArray qwjsonTypos = (JSONArray) qwjsonObj.get("typos");
-      for (Object o : qwjsonTypos) {
-        JSONObject jsonCursor = (JSONObject) o;
-        if (!jsonCursor.get("resolved_a").toString().isEmpty()
-                && !jsonCursor.get("type").toString().contains("All SLD")
-                && !jsonCursor.get("type").toString().contains("Wrong TLD")
-                && !jsonCursor.get("type").toString().contains("Original")) {
-          String message = jsonCursor.get("name").toString();
-          if (!returningJson.contains(jsonCursor)) {
-            returningJson.add(jsonCursor);
-            Vulnerability vulnerability = new Vulnerability(Vulnerability.generateId("redscan-urlcrazy",message,"urlcrazy"),
-                        Severity.INFO,
-                        String.format("[%s] Potential Squat on ", message ),
-                        String.format("Theses domains %s may squat our brand : %s", message, jsonCursor),
-                        message,
-                        "redscan-urlcrazy");
-            rabbitTemplate.convertAndSend(RabbitMqConfig.FANOUT_VULNERABILITIES_EXCHANGE_NAME, "", vulnerability.toJson());
-          }
 
-        }    
+  private JSONArray executeUrlCrazy(String domain, String keyboardLayout, JSONArray results) {
+    try {
+      LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Starting urlcrazy on : %s with %s layout", domain, keyboardLayout));
+      File out = File.createTempFile(keyboardLayout, "out");
+
+      OsCommandExecutor osCommandExecutor = new OsCommandExecutor();
+      StreamGobbler streamGobbler = osCommandExecutor.execute(String.format("/urlcrazy-0.7.3/urlcrazy -k %s -f JSON -o %s %s", keyboardLayout, out.getAbsolutePath(), domain));
+      if (streamGobbler != null) {
+        LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Urlcrazy terminated with status : %d", streamGobbler.getExitStatus()));
+        results = jsonResultFormatter(results, domain, out);
+      }
+    } catch (IOException ex) {
+      LogManager.getLogger(UrlcrazyScanApplication.class).error(String.format("IOException : %s", ex.getMessage()));
+    }
+    return results;
+  }
+
+  private JSONArray jsonResultFormatter(JSONArray results, String domain, File file) {
+    JSONParser parser = new JSONParser();
+
+    try {
+      LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Parsing JSON result for %s in %s file.", domain, file.getAbsoluteFile()));
+      JSONObject jsonObj = (JSONObject) parser.parse(new FileReader(file));
+      JSONArray typos = (JSONArray) jsonObj.get("typos");
+      for (Object typo : typos) {
+        JSONObject typoJson = (JSONObject) typo;
+        if (!typoJson.get("resolved_a").toString().isEmpty()
+                && !typoJson.get("type").toString().contains("All SLD")
+                && !typoJson.get("type").toString().contains("Wrong TLD")
+                && !typoJson.get("type").toString().contains("Original")) {
+          String squat = typoJson.get("name").toString();
+          if (!results.contains(squat)) {
+            results.add(squat);
+            LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Typo found : %s for %s", squat, domain));
+            Vulnerability vulnerability = new Vulnerability(Vulnerability.generateId("redscan-urlcrazy", squat, "urlcrazy"),
+                    Severity.INFO,
+                    String.format("Potential Squat on %s", squat),
+                    String.format("The domain %s may squat the domain : %s", squat, domain),
+                    domain,
+                    "redscan-urlcrazy");
+            rabbitTemplate.convertAndSend(RabbitMqConfig.FANOUT_VULNERABILITIES_EXCHANGE_NAME, "", vulnerability.toJson());
+          }
+        }
       }
     } catch (FileNotFoundException e) {
       LogManager.getLogger(UrlcrazyScanApplication.class).error(String.format("Error with json file: not found : %s", e.toString()));
@@ -190,10 +145,11 @@ public class UrlcrazyScanApplication {
       LogManager.getLogger(UrlcrazyScanApplication.class).error(String.format("Error with json file: IO : %S", e.toString()));
     } catch (ParseException e) {
       LogManager.getLogger(UrlcrazyScanApplication.class).error(String.format("Error with json file: Parsing %s", e.toString()));
+    } finally {
+      if (file != null && file.exists()) {
+        file.delete();
+      }
     }
-    return returningJson;
+    return results;
   }
 }
-
-
-  
