@@ -17,8 +17,9 @@
 package com.michelin.cert.redscan;
 
 import com.michelin.cert.redscan.utils.datalake.DatalakeStorageException;
-import com.michelin.cert.redscan.utils.models.Severity;
-import com.michelin.cert.redscan.utils.models.Vulnerability;
+import com.michelin.cert.redscan.utils.models.MasterDomain;
+import com.michelin.cert.redscan.utils.models.reports.Severity;
+import com.michelin.cert.redscan.utils.models.reports.Vulnerability;
 import com.michelin.cert.redscan.utils.system.OsCommandExecutor;
 import com.michelin.cert.redscan.utils.system.StreamGobbler;
 
@@ -36,7 +37,6 @@ import org.json.simple.parser.ParseException;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -49,9 +49,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class UrlcrazyScanApplication {
-
-  @Autowired
-  private DatalakeConfig datalakeConfig;
 
   private final RabbitTemplate rabbitTemplate;
 
@@ -80,18 +77,24 @@ public class UrlcrazyScanApplication {
    */
   @RabbitListener(queues = {RabbitMqConfig.QUEUE_MASTERDOMAINS})
   public void receiveMessage(String message) {
-    LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Starting urlcrazy on : %s", message));
+    MasterDomain masterDomain = new MasterDomain();
+    try {
+      masterDomain.fromJson(message);
+      LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Starting urlcrazy on : %s", masterDomain.getName()));
 
-    JSONArray results = new JSONArray();
-    executeUrlCrazy(message, "azerty", results);
-    executeUrlCrazy(message, "qwerty", results);
+      JSONArray results = new JSONArray();
+      executeUrlCrazy(masterDomain.getName(), "azerty", results);
+      executeUrlCrazy(masterDomain.getName(), "qwerty", results);
 
-    if (!results.isEmpty()) {
-      try {
-        datalakeConfig.upsertMasterDomainField(message, "urlcrazy", results);
-      } catch (DatalakeStorageException e) {
-        LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("datalake storage exeception %s", e));
+      if (!results.isEmpty()) {
+        try {
+          masterDomain.upsertField("urlcrazy", results);
+        } catch (DatalakeStorageException e) {
+          LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("datalake storage exception : %s", e));
+        }
       }
+    } catch (Exception e) {
+      LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("General exception : %s", e));
     }
   }
 
@@ -129,13 +132,15 @@ public class UrlcrazyScanApplication {
           if (!results.contains(squat)) {
             results.add(squat);
             LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Typo found : %s for %s", squat, domain));
-            Vulnerability vulnerability = new Vulnerability(Vulnerability.generateId("redscan-urlcrazy", squat, "urlcrazy"),
+            Vulnerability vulnerability = new Vulnerability(
                     Severity.INFO,
+                    "POTENTIAL_SQUAT",
                     String.format("Potential Squat on %s", squat),
                     String.format("The domain %s may squat the domain : %s", squat, domain),
                     domain,
+                    squat,
                     "redscan-urlcrazy");
-            rabbitTemplate.convertAndSend(RabbitMqConfig.FANOUT_VULNERABILITIES_EXCHANGE_NAME, "", vulnerability.toJson());
+            rabbitTemplate.convertAndSend(vulnerability.getFanoutExchangeName(), "", vulnerability.toJson());
           }
         }
       }
