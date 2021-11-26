@@ -37,7 +37,6 @@ public class CacheConfig extends CacheManager {
 
   @Autowired
   public CacheConfig() {
-    super();
   }
 
   @PostConstruct

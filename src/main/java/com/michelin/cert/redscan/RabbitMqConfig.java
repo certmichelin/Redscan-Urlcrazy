@@ -16,7 +16,7 @@
 
 package com.michelin.cert.redscan;
 
-import com.michelin.cert.redscan.utils.queueing.RabbitMqBaseConfig;
+import com.michelin.cert.redscan.utils.models.MasterDomain;
 
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Declarables;
@@ -33,7 +33,7 @@ import org.springframework.context.annotation.Configuration;
  * @author Maxence SCHMITT
  */
 @Configuration
-public class RabbitMqConfig extends RabbitMqBaseConfig {
+public class RabbitMqConfig {
   
   ///**
   // * QUEUE_DOMAINS.
@@ -48,7 +48,7 @@ public class RabbitMqConfig extends RabbitMqBaseConfig {
   @Bean
   public Declarables fanoutBindings() {
     Queue queue = new Queue(QUEUE_MASTERDOMAINS, false);
-    FanoutExchange fanoutExchange = new FanoutExchange(FANOUT_MASTERDOMAINS_EXCHANGE_NAME, false, false);
+    FanoutExchange fanoutExchange = new FanoutExchange(new MasterDomain().getFanoutExchangeName(), false, false);
     return new Declarables(queue, fanoutExchange, BindingBuilder.bind(queue).to(fanoutExchange));
   }
 }
