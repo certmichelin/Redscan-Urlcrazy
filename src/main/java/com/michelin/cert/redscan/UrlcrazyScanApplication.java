@@ -18,6 +18,7 @@ package com.michelin.cert.redscan;
 
 import com.michelin.cert.redscan.utils.datalake.DatalakeStorageException;
 import com.michelin.cert.redscan.utils.models.MasterDomain;
+import com.michelin.cert.redscan.utils.models.reports.CommonTags;
 import com.michelin.cert.redscan.utils.models.reports.Severity;
 import com.michelin.cert.redscan.utils.models.reports.Vulnerability;
 import com.michelin.cert.redscan.utils.system.OsCommandExecutor;
@@ -133,13 +134,15 @@ public class UrlcrazyScanApplication {
             results.add(squat);
             LogManager.getLogger(UrlcrazyScanApplication.class).info(String.format("Typo found : %s for %s", squat, domain));
             Vulnerability vulnerability = new Vulnerability(
+                    Vulnerability.generateId("redscan-urlcrazy", "POTENTIAL_SQUAT", squat, domain),
                     Severity.INFO,
-                    "POTENTIAL_SQUAT",
                     String.format("Potential Squat on %s", squat),
                     String.format("The domain %s may squat the domain : %s", squat, domain),
-                    domain,
                     squat,
-                    "redscan-urlcrazy");
+                    "redscan-urlcrazy",
+                    new String[]{CommonTags.PHISHING}
+            );
+
             rabbitTemplate.convertAndSend(vulnerability.getFanoutExchangeName(), "", vulnerability.toJson());
           }
         }
